@@ -4,6 +4,8 @@ from ml_model import pipeline
 from ml_model.nn_ops.train_nn import train_nn
 from ml_model.processing.data_management import save_file, save_dataset
 
+from sklearn.model_selection import train_test_split
+
 import os
 import pandas as pd
 
@@ -17,8 +19,12 @@ def run_training(features, targets):
     X = X.drop('sig_id', axis=1)
     targets = targets.drop('sig_id', axis=1)
 
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, targets, test_size=config.TEST_SIZE, random_state=42
+    )
+
     # train neural network
-    preds = train_nn(X.values, targets.values)
+    preds = train_nn(X_train.values, X_test.values, y_train.values, y_test.values)
 
     save_dataset(pd.DataFrame(preds), os.path.join(config.TRAINING_RESULTS_DIR, 'preds.csv'))
 

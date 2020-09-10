@@ -12,33 +12,49 @@ from sklearn.metrics import log_loss
 import os
 
 
-def train_nn(X, targets):
+def create_loaders(X_train, X_test, y_train, y_test):
 
-    X = torch.tensor(X).float()
-    targets = torch.tensor(targets).float()
+    X_train, X_test = torch.tensor(X_train).float(), torch.tensor(X_test).float()
+    y_train, y_test = torch.tensor(y_train).float(), torch.tensor(y_test).float()
 
-    dataset = BasicDataset(X, targets)
-    loader = DataLoader(dataset, batch_size = nn_config.BATCH_SIZE)
-    print(len(dataset))
+    train_dataset, test_dataset = BasicDataset(X_train, y_train), BasicDataset(X_test, y_test)
+    train_loader, test_loader = DataLoader(train_dataset, batch_size = nn_config.BATCH_SIZE), \
+                                DataLoader(test_dataset, batch_size = nn_config.BATCH_SIZE)
+
+    return train_loader, test_loader
+
+
+def train_nn(X_train, X_test, y_train, y_test):
+
+    train_loader, test_loader = create_loaders(X_train, X_test, y_train, y_test)
 
     torch.manual_seed(42)
-    model = Net(X.shape[1])
+    model = Net(X_train.shape[1])
     optimizer = optim.SGD(model.parameters(), lr=0.01)
 
     for i in range(nn_config.EPOCHS):
-        for b, (X_train, y_train) in enumerate(tqdm(loader)):
+        for b, (x_train, y_train) in enumerate(tqdm(train_loader)):
 
-            predictions = model(X_train)
+            train_predictions = model(x_train)
             criterion = nn_config.LOSS_FUNCTION
-            loss = criterion(predictions, y_train)
+            train_loss = criterion(train_predictions, y_train)
             optimizer.zero_grad()
-            loss.backward()
+            train_loss.backward()
             optimizer.step()
 
-        preds = F.softmax(predictions, dim=1).detach().numpy()
+        train_preds = F.softmax(train_predictions, dim=1).detach().numpy()
 
-        print("Loss for epoch {} is: {} and kaggle metric is: {}".format(i, loss,
-                                                                         log_loss(y_train, preds)))
+        print("Training: Loss for epoch {} is: {} and kaggle metric is: {}".format(i, train_loss,
+                                                                                   log_loss(y_train, train_preds)))
 
-    return preds
+        for b, (x_test, y_test) in enumerate(test_loader):
+
+            test_predictions = model(x_test)
+            test_loss = criterion(test_predictions, y_test)
+            test_preds = F.softmax(test_predictions, dim=1).detach().numpy()
+
+        print("Test: Loss for epoch {} is: {} and kaggle metric is: {}".format(i, test_loss,
+                                                                               log_loss(y_test, test_preds)))
+
+    return test_preds
 

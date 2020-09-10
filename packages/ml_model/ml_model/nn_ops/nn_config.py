@@ -1,6 +1,6 @@
 from torch.nn import BCEWithLogitsLoss
 
 
-EPOCHS = 2
+EPOCHS = 20
 LOSS_FUNCTION = BCEWithLogitsLoss()
-BATCH_SIZE = 40
+BATCH_SIZE = 10
