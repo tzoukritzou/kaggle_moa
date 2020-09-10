@@ -1,13 +1,15 @@
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 import ml_model.nn_ops.nn_config as nn_config
 from ml_model.nn_ops.neural_network import Net
 from ml_model.nn_ops.nn_data import BasicDataset
-from ml_model.processing.data_management import save_file
-from ml_model.config import config
+
+from sklearn.metrics import log_loss
+import os
 
 
 def train_nn(X, targets):
@@ -17,6 +19,7 @@ def train_nn(X, targets):
 
     dataset = BasicDataset(X, targets)
     loader = DataLoader(dataset, batch_size = nn_config.BATCH_SIZE)
+    print(len(dataset))
 
     torch.manual_seed(42)
     model = Net(X.shape[1])
@@ -26,12 +29,16 @@ def train_nn(X, targets):
         for b, (X_train, y_train) in enumerate(tqdm(loader)):
 
             predictions = model(X_train)
-
             criterion = nn_config.LOSS_FUNCTION
             loss = criterion(predictions, y_train)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        print("Loss for epoch {} is: {}".format(i, loss))
 
-    save_file(predictions, os.path.join(config.TRAINING_RESULTS_DIR, 'preds.csv'))
+        preds = F.softmax(predictions, dim=1).detach().numpy()
+
+        print("Loss for epoch {} is: {} and kaggle metric is: {}".format(i, loss,
+                                                                         log_loss(y_train, preds)))
+
+    return preds
+
