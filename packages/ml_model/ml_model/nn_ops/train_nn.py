@@ -1,21 +1,37 @@
 import torch
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
 
 import ml_model.nn_ops.nn_config as nn_config
 from ml_model.nn_ops.neural_network import Net
+from ml_model.nn_ops.nn_data import BasicDataset
+from ml_model.processing.data_management import save_file
+from ml_model.config import config
+
 
 def train_nn(X, targets):
 
-    X = torch.tensor(X)
-    targets = torch.tensor(targets)
+    X = torch.tensor(X).float()
+    targets = torch.tensor(targets).float()
 
-    model = Net(X.shape[0])
+    dataset = BasicDataset(X, targets)
+    loader = DataLoader(dataset, batch_size = nn_config.BATCH_SIZE)
+
+    torch.manual_seed(42)
+    model = Net(X.shape[1])
+    optimizer = optim.SGD(model.parameters(), lr=0.01)
 
     for i in range(nn_config.EPOCHS):
+        for b, (X_train, y_train) in enumerate(tqdm(loader)):
 
-        predictions = model(X.float())
+            predictions = model(X_train)
 
-        criterion = nn_config.LOSS
-        loss = criterion(predictions, targets)
-        model.zero_grad()
-        loss.backward()
-        print(loss)
+            criterion = nn_config.LOSS_FUNCTION
+            loss = criterion(predictions, y_train)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        print("Loss for epoch {} is: {}".format(i, loss))
+
+    save_file(predictions, os.path.join(config.TRAINING_RESULTS_DIR, 'preds.csv'))
