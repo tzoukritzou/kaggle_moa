@@ -9,17 +9,22 @@ from ml_model.nn_ops.neural_network import Net
 from ml_model.nn_ops.nn_data import BasicDataset
 
 from sklearn.metrics import log_loss
-import os
+
+
+def create_tensor(data):
+
+    data = torch.tensor(data).float()
+    return data
 
 
 def create_loaders(X_train, X_test, y_train, y_test):
 
-    X_train, X_test = torch.tensor(X_train).float(), torch.tensor(X_test).float()
-    y_train, y_test = torch.tensor(y_train).float(), torch.tensor(y_test).float()
+    X_train, X_test = create_tensor(X_train), create_tensor(X_test)
+    y_train, y_test = create_tensor(y_train), create_tensor(y_test)
 
     train_dataset, test_dataset = BasicDataset(X_train, y_train), BasicDataset(X_test, y_test)
-    train_loader, test_loader = DataLoader(train_dataset, batch_size = nn_config.BATCH_SIZE), \
-                                DataLoader(test_dataset, batch_size = nn_config.BATCH_SIZE)
+    train_loader, test_loader = DataLoader(train_dataset, batch_size = nn_config.BATCH_SIZE, drop_last=True), \
+                                DataLoader(test_dataset, batch_size = nn_config.BATCH_SIZE, drop_last=True)
 
     return train_loader, test_loader
 
@@ -30,9 +35,10 @@ def train_nn(X_train, X_test, y_train, y_test):
 
     torch.manual_seed(42)
     model = Net(X_train.shape[1])
-    optimizer = optim.SGD(model.parameters(), lr=0.01)
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
 
     for i in range(nn_config.EPOCHS):
+        model.train()
         for b, (x_train, y_train) in enumerate(tqdm(train_loader)):
 
             train_predictions = model(x_train)
@@ -46,7 +52,7 @@ def train_nn(X_train, X_test, y_train, y_test):
 
         print("Training: Loss for epoch {} is: {} and kaggle metric is: {}".format(i, train_loss,
                                                                                    log_loss(y_train, train_preds)))
-
+        model.eval()
         for b, (x_test, y_test) in enumerate(test_loader):
 
             test_predictions = model(x_test)
@@ -56,5 +62,5 @@ def train_nn(X_train, X_test, y_train, y_test):
         print("Test: Loss for epoch {} is: {} and kaggle metric is: {}".format(i, test_loss,
                                                                                log_loss(y_test, test_preds)))
 
-    return test_preds
+    return model
 
