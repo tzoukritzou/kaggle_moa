@@ -1,14 +1,15 @@
 import torch
-import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
+from ml_model.config import config
 import ml_model.nn_ops.nn_config as nn_config
 from ml_model.nn_ops.neural_network import Net
 from ml_model.nn_ops.nn_data import BasicDataset
 
 from sklearn.metrics import log_loss
+import os
 
 
 def create_tensor(data):
@@ -23,10 +24,20 @@ def create_loaders(X_train, X_test, y_train, y_test):
     y_train, y_test = create_tensor(y_train), create_tensor(y_test)
 
     train_dataset, test_dataset = BasicDataset(X_train, y_train), BasicDataset(X_test, y_test)
-    train_loader, test_loader = DataLoader(train_dataset, batch_size = nn_config.BATCH_SIZE, drop_last=True), \
-                                DataLoader(test_dataset, batch_size = nn_config.BATCH_SIZE, drop_last=True)
+    train_loader, test_loader = DataLoader(train_dataset, batch_size=nn_config.BATCH_SIZE, drop_last=True), \
+                                DataLoader(test_dataset, batch_size=nn_config.BATCH_SIZE, drop_last=True)
 
     return train_loader, test_loader
+
+
+def save_best_model(metric, best_metric, epoch, model):
+
+    if metric < best_metric:
+        best_metric = metric
+        torch.save(model.state_dict(), os.path.join(config.TRAINING_RESULTS_DIR, nn_config.NN_NAME))
+        print("Saved best model of epoch {}".format(epoch))
+
+    return best_metric
 
 
 def train_nn(X_train, X_test, y_train, y_test):
@@ -35,8 +46,9 @@ def train_nn(X_train, X_test, y_train, y_test):
 
     torch.manual_seed(42)
     model = Net(X_train.shape[1])
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    optimizer = nn_config.OPTIMIZER(model.parameters(), lr=nn_config.LR)
 
+    best_kaggle_metric = 100
     for i in range(nn_config.EPOCHS):
         model.train()
         for b, (x_train, y_train) in enumerate(tqdm(train_loader)):
@@ -59,8 +71,8 @@ def train_nn(X_train, X_test, y_train, y_test):
             test_loss = criterion(test_predictions, y_test)
             test_preds = F.softmax(test_predictions, dim=1).detach().numpy()
 
+        kaggle_metric = log_loss(y_test, test_preds)
+        best_kaggle_metric = save_best_model(kaggle_metric, best_kaggle_metric, i, model)
+
         print("Test: Loss for epoch {} is: {} and kaggle metric is: {}".format(i, test_loss,
-                                                                               log_loss(y_test, test_preds)))
-
-    return model
-
+                                                                               kaggle_metric))

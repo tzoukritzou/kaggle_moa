@@ -1,7 +1,10 @@
 from torch.nn import BCEWithLogitsLoss
+import torch.optim as optim
 
 
-EPOCHS = 10
+EPOCHS = 15
 LOSS_FUNCTION = BCEWithLogitsLoss()
-BATCH_SIZE = 10
+BATCH_SIZE = 15
+LR = 0.01
+OPTIMIZER = optim.Adam
 NN_NAME = 'nn_model.pt'
