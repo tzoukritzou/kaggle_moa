@@ -43,8 +43,8 @@ def stratified_train_test_split(X, y):
     msss = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=config.TEST_SIZE, random_state=42)
 
     for train_index, test_index in msss.split(X, y):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
+        X_train, X_test = X.loc[train_index], X.loc[test_index]
+        y_train, y_test = y.loc[train_index], y.loc[test_index]
 
     return X_train, X_test, y_train, y_test
 

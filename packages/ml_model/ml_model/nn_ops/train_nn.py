@@ -8,6 +8,7 @@ from ml_model.config import config
 import ml_model.nn_ops.nn_config as nn_config
 from ml_model.nn_ops.neural_network import Net
 from ml_model.nn_ops.nn_data import BasicDataset
+from ml_model import pipeline
 
 from sklearn.metrics import log_loss
 import os
@@ -53,6 +54,11 @@ def log_metrics(writer, train_loss, test_loss, kaggle_train, kaggle_test, i):
 
 
 def train_nn(X_train, X_test, y_train, y_test):
+
+    X_train = pipeline.nn_pipe.fit_transform(X_train).values
+    X_test = pipeline.nn_pipe.fit_transform(X_test).values
+    y_train = y_train.values
+    y_test = y_test.values
 
     train_loader, test_loader = create_loaders(X_train, X_test, y_train, y_test)
 

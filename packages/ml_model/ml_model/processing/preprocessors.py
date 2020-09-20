@@ -1,6 +1,7 @@
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from ml_model.config import config
+from ml_model.nn_ops import train_nn
 
 
 class CategoricalEncoding(BaseEstimator, TransformerMixin):
@@ -12,6 +13,7 @@ class CategoricalEncoding(BaseEstimator, TransformerMixin):
         return self
 
     @staticmethod
-    def transform(x):
-        x = pd.get_dummies(x, columns=config.CATEGORICAL_VARS, drop_first=True)
-        return x
+    def transform(X):
+        X = pd.get_dummies(X, columns=config.CATEGORICAL_VARS, drop_first=True)
+        return X
+

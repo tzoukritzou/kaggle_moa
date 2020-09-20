@@ -17,3 +17,4 @@ CATEGORICAL_VARS = ['cp_type', 'cp_dose']
 
 TEST_SIZE = 0.2
 
+RANDOM_STATE = 42
