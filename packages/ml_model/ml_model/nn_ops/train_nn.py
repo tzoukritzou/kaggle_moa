@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
+from torch.utils.tensorboard import SummaryWriter
 
 from ml_model.config import config
 import ml_model.nn_ops.nn_config as nn_config
@@ -10,6 +11,7 @@ from ml_model.nn_ops.nn_data import BasicDataset
 
 from sklearn.metrics import log_loss
 import os
+from datetime import datetime
 
 
 def create_tensor(data):
@@ -40,6 +42,16 @@ def save_best_model(metric, best_metric, epoch, model):
     return best_metric
 
 
+def log_metrics(writer, train_loss, test_loss, kaggle_train, kaggle_test, i):
+
+    writer.add_scalar('Loss/train', train_loss, i)
+    writer.add_scalar('Loss/test', test_loss, i)
+    writer.add_scalar('LogLoss/train', kaggle_train, i)
+    writer.add_scalar('LogLoss/test', kaggle_test, i)
+
+    return writer
+
+
 def train_nn(X_train, X_test, y_train, y_test):
 
     train_loader, test_loader = create_loaders(X_train, X_test, y_train, y_test)
@@ -48,7 +60,13 @@ def train_nn(X_train, X_test, y_train, y_test):
     model = Net(X_train.shape[1])
     optimizer = nn_config.OPTIMIZER(model.parameters(), lr=nn_config.LR)
 
-    best_kaggle_metric = 100
+    data_iter = iter(train_loader)
+    x_train, y = data_iter.next()
+    now = datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
+    writer = SummaryWriter('training_results/runs/' + now.replace('/', '_').replace(' ', '_').replace(',', '_') +
+                           '_LR_' + str(nn_config.LR) + '_batch_size_' + str(nn_config.BATCH_SIZE))
+    writer.add_graph(model, x_train)
+    best_kaggle_test = 100
     for i in range(nn_config.EPOCHS):
         model.train()
         for b, (x_train, y_train) in enumerate(tqdm(train_loader)):
@@ -61,9 +79,10 @@ def train_nn(X_train, X_test, y_train, y_test):
             optimizer.step()
 
         train_preds = F.softmax(train_predictions, dim=1).detach().numpy()
+        kaggle_train = log_loss(y_train, train_preds)
 
         print("Training: Loss for epoch {} is: {} and kaggle metric is: {}".format(i, train_loss,
-                                                                                   log_loss(y_train, train_preds)))
+                                                                                   kaggle_train))
         model.eval()
         for b, (x_test, y_test) in enumerate(test_loader):
 
@@ -71,8 +90,12 @@ def train_nn(X_train, X_test, y_train, y_test):
             test_loss = criterion(test_predictions, y_test)
             test_preds = F.softmax(test_predictions, dim=1).detach().numpy()
 
-        kaggle_metric = log_loss(y_test, test_preds)
-        best_kaggle_metric = save_best_model(kaggle_metric, best_kaggle_metric, i, model)
+        kaggle_test = log_loss(y_test, test_preds)
+        best_kaggle_test = save_best_model(kaggle_test, best_kaggle_test, i, model)
 
         print("Test: Loss for epoch {} is: {} and kaggle metric is: {}".format(i, test_loss,
-                                                                               kaggle_metric))
+                                                                               kaggle_test))
+
+        writer = log_metrics(writer, train_loss, test_loss, kaggle_train, kaggle_test, i+1)
+    writer.flush()
+    writer.close()

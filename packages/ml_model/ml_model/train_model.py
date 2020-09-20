@@ -19,5 +19,8 @@ def run_training():
     # train neural network
     train_nn(X_train, X_test, y_train, y_test)
 
+    # train shallow learning
+    train_shallow(X_train, X_test, y_train, y_test)
+
 
 run_training()
