@@ -2,7 +2,10 @@ import pandas as pd
 import os
 import torch.nn.functional as F
 
+from sklearn.metrics import log_loss, recall_score, accuracy_score, precision_score
+
 from ml_model.config import config
+from ml_model.nn_ops import nn_config
 from ml_model import pipeline
 from ml_model.processing import data_management as dm
 from ml_model.nn_ops.train_nn import create_tensor
@@ -40,8 +43,28 @@ def create_sub_file(preds):
     return sub
 
 
-preds = make_predictions(config.NN_NAME)
-sub_file = create_sub_file(preds)
+def predict_for_kaggle():
 
-print("Saving submission file...")
-dm.save_dataset(sub_file, os.path.join(config.TRAINING_RESULTS_DIR, 'submission.csv'))
+    preds = make_predictions(nn_config.NN_NAME)
+    sub_file = create_sub_file(preds)
+
+    print("Saving submission file...")
+    dm.save_dataset(sub_file, os.path.join(config.TRAINING_RESULTS_DIR, 'submission.csv'))
+
+
+def evaluate_shallow_model(pipeline, X_train, X_test, y_train, y_test):
+
+    train_preds = pipeline.predict(X_train)
+    test_preds = pipeline.predict(X_test)
+
+    print("Log loss for train set is {} and log loss for test set is {}".format(log_loss(y_train, train_preds),
+                                                                                log_loss(y_test, test_preds)))
+    print("Train recall: {} and test recall: {}".format(recall_score(y_train, train_preds),
+                                                        recall_score(y_test, test_preds)))
+    print("Train accuracy: {} and test accuracy: {}".format(accuracy_score(y_train, train_preds),
+                                                            accuracy_score(y_test, test_preds)))
+    print("Train precision: {} and test precision: {}".format(precision_score(y_train, train_preds),
+                                                              precision_score(y_test, test_preds)))
+
+
+# predict_for_kaggle()
