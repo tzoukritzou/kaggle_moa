@@ -65,12 +65,14 @@ def train_nn(X_train, X_test, y_train, y_test):
     torch.manual_seed(42)
     model = Net(X_train.shape[1])
     optimizer = nn_config.OPTIMIZER(model.parameters(), lr=nn_config.LR)
+    scheduler = nn_config.SCHEDULER(optimizer, base_lr=nn_config.SCHEDULER_BASE_LR,
+                                    max_lr=nn_config.SCHEDULER_MAX_LR, cycle_momentum=False)
 
     data_iter = iter(train_loader)
     x_train, y = data_iter.next()
     now = datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-    writer = SummaryWriter('training_results/runs/' + now.replace('/', '_').replace(' ', '_').replace(',', '_') +
-                           '_LR_' + str(nn_config.LR) + '_batch_size_' + str(nn_config.BATCH_SIZE))
+    writer = SummaryWriter('training_results/runs/' + '_LR_' + str(nn_config.LR) + '_batch_size_' +
+                           str(nn_config.BATCH_SIZE) + nn_config.USER_DEFINED_CHANGE)
     writer.add_graph(model, x_train)
     best_kaggle_test = 100
     for i in range(nn_config.EPOCHS):
@@ -83,11 +85,12 @@ def train_nn(X_train, X_test, y_train, y_test):
             optimizer.zero_grad()
             train_loss.backward()
             optimizer.step()
+            scheduler.step()
 
         train_preds = F.softmax(train_predictions, dim=1).detach().numpy()
         kaggle_train = log_loss(y_train, train_preds)
 
-        print("Training: Loss for epoch {} is: {} and kaggle metric is: {}".format(i, train_loss,
+        print("Training: Loss for epoch {:.5f} is: {:.5f} and kaggle metric is: {}".format(i, train_loss,
                                                                                    kaggle_train))
         model.eval()
         for b, (x_test, y_test) in enumerate(test_loader):
@@ -99,7 +102,7 @@ def train_nn(X_train, X_test, y_train, y_test):
         kaggle_test = log_loss(y_test, test_preds)
         best_kaggle_test = save_best_model(kaggle_test, best_kaggle_test, i, model)
 
-        print("Test: Loss for epoch {} is: {} and kaggle metric is: {}".format(i, test_loss,
+        print("Test: Loss for epoch {:.5f} is: {:.5f} and kaggle metric is: {}".format(i, test_loss,
                                                                                kaggle_test))
 
         writer = log_metrics(writer, train_loss, test_loss, kaggle_train, kaggle_test, i+1)
