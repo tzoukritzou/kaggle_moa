@@ -53,10 +53,10 @@ def log_metrics(writer, train_loss, test_loss, kaggle_train, kaggle_test, i):
     return writer
 
 
-def train_nn(X_train, X_test, y_train, y_test):
+def train_nn(X_train, X_test, y_train, y_test, weights):
 
-    X_train = pipeline.nn_pipe.fit_transform(X_train).values
-    X_test = pipeline.nn_pipe.fit_transform(X_test).values
+    X_train = pipeline.nn_pipe.fit_transform(X_train)
+    X_test = pipeline.nn_pipe.transform(X_test)
     y_train = y_train.values
     y_test = y_test.values
 
@@ -64,9 +64,10 @@ def train_nn(X_train, X_test, y_train, y_test):
 
     torch.manual_seed(42)
     model = Net(X_train.shape[1])
+    criterion = nn_config.LOSS_FUNCTION(pos_weight=torch.tensor(weights))
     optimizer = nn_config.OPTIMIZER(model.parameters(), lr=nn_config.LR)
-    scheduler = nn_config.SCHEDULER(optimizer, base_lr=nn_config.SCHEDULER_BASE_LR,
-                                    max_lr=nn_config.SCHEDULER_MAX_LR, cycle_momentum=False)
+    # scheduler = nn_config.SCHEDULER(optimizer, base_lr=nn_config.SCHEDULER_BASE_LR,
+    #                                max_lr=nn_config.SCHEDULER_MAX_LR, cycle_momentum=False)
 
     data_iter = iter(train_loader)
     x_train, y = data_iter.next()
@@ -80,17 +81,16 @@ def train_nn(X_train, X_test, y_train, y_test):
         for b, (x_train, y_train) in enumerate(tqdm(train_loader)):
 
             train_predictions = model(x_train)
-            criterion = nn_config.LOSS_FUNCTION
             train_loss = criterion(train_predictions, y_train)
             optimizer.zero_grad()
             train_loss.backward()
             optimizer.step()
-            scheduler.step()
+            # scheduler.step()
 
         train_preds = F.softmax(train_predictions, dim=1).detach().numpy()
         kaggle_train = log_loss(y_train, train_preds)
 
-        print("Training: Loss for epoch {:.5f} is: {:.5f} and kaggle metric is: {}".format(i, train_loss,
+        print("Training: Loss for epoch {} is: {:.5f} and kaggle metric is: {:.5f}".format(i, train_loss,
                                                                                    kaggle_train))
         model.eval()
         for b, (x_test, y_test) in enumerate(test_loader):
@@ -102,8 +102,8 @@ def train_nn(X_train, X_test, y_train, y_test):
         kaggle_test = log_loss(y_test, test_preds)
         best_kaggle_test = save_best_model(kaggle_test, best_kaggle_test, i, model)
 
-        print("Test: Loss for epoch {:.5f} is: {:.5f} and kaggle metric is: {}".format(i, test_loss,
-                                                                               kaggle_test))
+        print("Test: Loss for epoch {} is: {:.5f} and kaggle metric is: {:.5f}".format(i, test_loss,
+                                                                                       kaggle_test))
 
         writer = log_metrics(writer, train_loss, test_loss, kaggle_train, kaggle_test, i+1)
     writer.flush()

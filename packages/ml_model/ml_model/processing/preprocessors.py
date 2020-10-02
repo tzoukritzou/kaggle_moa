@@ -15,7 +15,7 @@ class BasicPreprocessing(BaseEstimator, TransformerMixin):
     @staticmethod
     def transform(X):
 
-        X = pd.get_dummies(X, columns=['cp_dose'], drop_first=True)
+        X['cp_dose'] = X['cp_dose'].map({'D1': 0, 'D2': 1})
         X['cp_time'] = X['cp_time'].map({24: 1, 48: 2, 72: 3})
 
         return X
